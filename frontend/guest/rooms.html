@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Доступные номера</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="../index.html">Венеция</a>
+
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link active" href="rooms.html">Доступные номера</a>
+            <a class="nav-link" href="my-reservations.html">Мои брони</a>
+            <a class="nav-link" href="../login.html">Вход сотрудника</a>
+        </div>
+    </div>
+</nav>
+
+<main class="container mt-4">
+    <h1 class="page-title">Доступные номера</h1>
+
+    <div class="form-container mb-4">
+        <form id="searchRoomsForm">
+            <div class="row">
+                <div class="col-md-5 mb-3">
+                    <label for="checkInDate" class="form-label">Дата заезда</label>
+                    <input
+                        type="date"
+                        id="checkInDate"
+                        class="form-control"
+                        required
+                    >
+                </div>
+
+                <div class="col-md-5 mb-3">
+                    <label for="checkOutDate" class="form-label">Дата выезда</label>
+                    <input
+                        type="date"
+                        id="checkOutDate"
+                        class="form-control"
+                        required
+                    >
+                </div>
+
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary w-100"
+                        id="searchButton"
+                    >
+                        Найти
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="errorMessage" class="alert alert-danger d-none"></div>
+
+    <div id="roomsBlock" class="d-none">
+        <h2 class="mb-3">Подходящие номера</h2>
+
+        <table class="table table-bordered table-striped">
+            <thead>
+            <tr>
+                <th>Номер</th>
+                <th>Действие</th>
+            </tr>
+            </thead>
+
+            <tbody id="roomsTableBody"></tbody>
+        </table>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script src="../js/guest.js"></script>
+
+<script>
+    const searchRoomsForm = document.getElementById("searchRoomsForm");
+    const roomsBlock = document.getElementById("roomsBlock");
+    const roomsTableBody = document.getElementById("roomsTableBody");
+    const searchButton = document.getElementById("searchButton");
+
+    function setDefaultDates() {
+        const today = new Date();
+        const tomorrow = new Date();
+
+        tomorrow.setDate(today.getDate() + 1);
+
+        const todayValue = today.toISOString().split("T")[0];
+        const tomorrowValue = tomorrow.toISOString().split("T")[0];
+
+        document.getElementById("checkInDate").value = todayValue;
+        document.getElementById("checkOutDate").value = tomorrowValue;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        setDefaultDates();
+    });
+
+    searchRoomsForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        hideGuestError("errorMessage");
+
+        roomsTableBody.innerHTML = "";
+        roomsBlock.classList.add("d-none");
+
+        const checkInDate = document.getElementById("checkInDate").value;
+        const checkOutDate = document.getElementById("checkOutDate").value;
+
+        if (!checkInDate || !checkOutDate) {
+            showGuestError("errorMessage", "Укажите даты заезда и выезда");
+            return;
+        }
+
+        if (checkOutDate <= checkInDate) {
+            showGuestError(
+                "errorMessage",
+                "Дата выезда должна быть позже даты заезда"
+            );
+            return;
+        }
+
+        searchButton.disabled = true;
+        searchButton.textContent = "Поиск...";
+
+        try {
+            const rooms = await getAvailableRooms(
+                checkInDate,
+                checkOutDate
+            );
+
+            if (!rooms || rooms.length === 0) {
+                showGuestError(
+                    "errorMessage",
+                    "На выбранные даты свободных номеров нет."
+                );
+                return;
+            }
+
+            rooms.forEach(function (room) {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>${room.room_number}</td>
+                    <td>
+                        <a
+                            class="btn btn-sm btn-primary"
+                            href="reservation.html?room_id=${room.room_id}&check_in_date=${checkInDate}&check_out_date=${checkOutDate}"
+                        >
+                            Забронировать
+                        </a>
+                    </td>
+                `;
+
+                roomsTableBody.appendChild(row);
+            });
+
+            roomsBlock.classList.remove("d-none");
+
+        } catch (error) {
+            showGuestError("errorMessage", error.message);
+
+        } finally {
+            searchButton.disabled = false;
+            searchButton.textContent = "Найти";
+        }
+    });
+</script>
+
+</body>
+</html>

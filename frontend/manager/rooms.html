@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Номера</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="../index.html">Hotel IS</a>
+
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="reservations.html">Брони</a>
+            <a class="nav-link" href="clients.html">Клиенты</a>
+            <a class="nav-link" href="payments.html">Оплаты</a>
+            <a class="nav-link" href="check-ins.html">Заселение</a>
+            <a class="nav-link" href="stay-history.html">История</a>
+            <a class="nav-link active" href="rooms.html">Номера</a>
+
+            <button class="btn btn-outline-light btn-sm ms-3" onclick="logout()">
+                Выйти
+            </button>
+        </div>
+    </div>
+</nav>
+
+<main class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Номера</h1>
+
+        <button class="btn btn-primary" onclick="loadRooms()">
+            Обновить
+        </button>
+    </div>
+
+    <div id="errorMessage" class="alert alert-danger d-none"></div>
+    <div id="successMessage" class="alert alert-success d-none"></div>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+        <tr>
+            <th>ID номера</th>
+            <th>Номер</th>
+            <th>ID категории</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+        </thead>
+
+        <tbody id="roomsTableBody"></tbody>
+    </table>
+</main>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/manager.js"></script>
+
+<script>
+    requireRole(["manager", "admin"]);
+
+    const roomsTableBody = document.getElementById("roomsTableBody");
+
+    async function loadRooms() {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        roomsTableBody.innerHTML = "";
+
+        try {
+            const rooms = await getRooms();
+
+            if (!rooms || rooms.length === 0) {
+                roomsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            Номера не найдены
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            rooms.forEach(function (room) {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>${room.room_id}</td>
+                    <td>${room.room_number}</td>
+                    <td>${room.category_id}</td>
+                    <td>
+                        <span class="${getManagerStatusClass(room.status)}">
+                            ${room.status}
+                        </span>
+                    </td>
+                    <td>
+                        ${
+                            room.status === "cleaning"
+                                ? `<button
+                                        class="btn btn-sm btn-success"
+                                        onclick="handleMarkRoomFree(${room.room_id})"
+                                   >
+                                        Сделать свободным
+                                   </button>`
+                                : "-"
+                        }
+                    </td>
+                `;
+
+                roomsTableBody.appendChild(row);
+            });
+
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    async function handleMarkRoomFree(roomId) {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        const confirmed = confirm("Перевести номер в статус free?");
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await markRoomFree(roomId);
+            showManagerSuccess("successMessage", "Номер переведён в статус free.");
+            await loadRooms();
+
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    loadRooms();
+</script>
+
+</body>
+</html>

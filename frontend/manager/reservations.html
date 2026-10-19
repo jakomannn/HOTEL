@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Брони</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="../index.html">Hotel IS</a>
+
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link active" href="reservations.html">Брони</a>
+            <a class="nav-link" href="clients.html">Клиенты</a>
+            <a class="nav-link" href="payments.html">Оплаты</a>
+            <a class="nav-link" href="check-ins.html">Заселение</a>
+            <a class="nav-link" href="stay-history.html">История</a>
+            <a class="nav-link" href="rooms.html">Номера</a>
+            <button class="btn btn-outline-light btn-sm ms-3" onclick="logout()">
+                Выйти
+            </button>
+        </div>
+    </div>
+</nav>
+
+<main class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Брони</h1>
+
+        <button class="btn btn-primary" onclick="loadReservations()">
+            Обновить
+        </button>
+    </div>
+
+    <div id="errorMessage" class="alert alert-danger d-none"></div>
+    <div id="successMessage" class="alert alert-success d-none"></div>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+        <tr>
+            <th>ID брони</th>
+            <th>ID клиента</th>
+            <th>ID номера</th>
+            <th>Дата заезда</th>
+            <th>Дата выезда</th>
+            <th>Статус брони</th>
+            <th>Оплата</th>
+            <th>Check-in</th>
+            <th>Действия</th>
+        </tr>
+        </thead>
+
+        <tbody id="reservationsTableBody"></tbody>
+    </table>
+</main>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/manager.js"></script>
+
+<script>
+    requireRole(["manager", "admin"]);
+
+    const reservationsTableBody = document.getElementById("reservationsTableBody");
+
+    async function loadReservationDetails(reservation) {
+        let payments = [];
+        let checkIns = [];
+
+        try {
+            payments = await getPaymentsByReservation(reservation.reservation_id);
+        } catch (error) {
+            payments = [];
+        }
+
+        try {
+            checkIns = await getCheckInsByReservation(reservation.reservation_id);
+        } catch (error) {
+            checkIns = [];
+        }
+
+        return {
+            ...reservation,
+            payment: payments.length > 0 ? payments[0] : null,
+            checkIns: checkIns
+        };
+    }
+
+    function getActiveCheckIn(checkIns) {
+        if (!checkIns || checkIns.length === 0) {
+            return null;
+        }
+
+        return checkIns.find(function (checkIn) {
+            return checkIn.check_out_time === null;
+        }) || null;
+    }
+
+    function renderPayment(payment) {
+        if (!payment) {
+            return "-";
+        }
+
+        return `
+            <span class="${getManagerStatusClass(payment.status)}">
+                ${payment.status}
+            </span>
+            <br>
+            <small>ID: ${payment.payment_id}</small>
+            <br>
+            <small>Сумма: ${formatManagerMoney(payment.amount)}</small>
+        `;
+    }
+
+    function renderCheckInInfo(checkIns) {
+        if (!checkIns || checkIns.length === 0) {
+            return "-";
+        }
+
+        const activeCheckIn = getActiveCheckIn(checkIns);
+
+        if (activeCheckIn) {
+            return `
+                <span class="status-badge status-occupied">
+                    active
+                </span>
+                <br>
+                <small>ID: ${activeCheckIn.check_in_id}</small>
+                <br>
+                <small>${formatDateTime(activeCheckIn.check_in_time)}</small>
+            `;
+        }
+
+        const lastCheckIn = checkIns[checkIns.length - 1];
+
+        return `
+            <span class="status-badge status-completed">
+                completed
+            </span>
+            <br>
+            <small>ID: ${lastCheckIn.check_in_id}</small>
+        `;
+    }
+
+    function renderReservationRow(reservation) {
+        const payment = reservation.payment;
+        const activeCheckIn = getActiveCheckIn(reservation.checkIns);
+
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${reservation.reservation_id}</td>
+            <td>${reservation.client_id}</td>
+            <td>${reservation.room_id}</td>
+            <td>${formatDateTime(reservation.check_in_date)}</td>
+            <td>${formatDateTime(reservation.check_out_date)}</td>
+            <td>
+                <span class="${getManagerStatusClass(reservation.status)}">
+                    ${reservation.status}
+                </span>
+            </td>
+            <td>${renderPayment(payment)}</td>
+            <td>${renderCheckInInfo(reservation.checkIns)}</td>
+            <td>
+                ${
+                    payment && payment.status !== "paid"
+                        ? `<button
+                                class="btn btn-sm btn-success mb-1"
+                                onclick="handleConfirmPayment(${payment.payment_id})"
+                           >
+                                Подтвердить оплату
+                           </button>`
+                        : ""
+                }
+
+                ${
+                    reservation.status === "confirmed" && !activeCheckIn
+                        ? `<button
+                                class="btn btn-sm btn-primary mb-1"
+                                onclick="handleCheckIn(${reservation.reservation_id})"
+                           >
+                                Заселить
+                           </button>`
+                        : ""
+                }
+
+                ${
+                    activeCheckIn
+                        ? `<button
+                                class="btn btn-sm btn-warning mb-1"
+                                onclick="handleCheckOut(${activeCheckIn.check_in_id})"
+                           >
+                                Выселить
+                           </button>`
+                        : ""
+                }
+
+                ${
+                    reservation.status !== "completed" && reservation.status !== "cancelled"
+                        ? `<button
+                                class="btn btn-sm btn-outline-danger mb-1"
+                                onclick="handleCancelReservation(${reservation.reservation_id})"
+                           >
+                                Отменить
+                           </button>`
+                        : ""
+                }
+            </td>
+        `;
+
+        reservationsTableBody.appendChild(row);
+    }
+
+    async function loadReservations() {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        reservationsTableBody.innerHTML = "";
+
+        try {
+            const reservations = await getReservations();
+
+            if (!reservations || reservations.length === 0) {
+                reservationsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center">
+                            Брони не найдены
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const reservationsWithDetails = await Promise.all(
+                reservations.map(loadReservationDetails)
+            );
+
+            reservationsWithDetails.forEach(renderReservationRow);
+
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    async function handleConfirmPayment(paymentId) {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        try {
+            await confirmPayment(paymentId);
+            showManagerSuccess("successMessage", "Оплата подтверждена.");
+            await loadReservations();
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    async function handleCheckIn(reservationId) {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        try {
+            await checkInReservation(reservationId);
+            showManagerSuccess("successMessage", "Гость успешно заселён.");
+            await loadReservations();
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    async function handleCheckOut(checkInId) {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        try {
+            await checkOut(checkInId);
+            showManagerSuccess("successMessage", "Гость успешно выселен.");
+            await loadReservations();
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    async function handleCancelReservation(reservationId) {
+        hideManagerError("errorMessage");
+        hideManagerSuccess("successMessage");
+
+        const confirmed = confirm("Отменить бронь?");
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await cancelReservation(reservationId);
+            showManagerSuccess("successMessage", "Бронь отменена.");
+            await loadReservations();
+        } catch (error) {
+            showManagerError("errorMessage", error.message);
+        }
+    }
+
+    loadReservations();
+</script>
+
+</body>
+</html>

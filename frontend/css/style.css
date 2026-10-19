@@ -1,0 +1,85 @@
+body {
+    background-color: #f8f9fa;
+}
+
+main {
+    padding-bottom: 40px;
+}
+
+.card {
+    border-radius: 12px;
+}
+
+.table {
+    background-color: #ffffff;
+}
+
+.page-title {
+    margin-bottom: 24px;
+}
+
+.form-container {
+    max-width: 700px;
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-free {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-occupied {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.status-cleaning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.status-confirmed {
+    background-color: #cff4fc;
+    color: #055160;
+}
+
+.status-completed {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-cancelled {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.status-paid {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-unpaid {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.status-pending-payment {
+    background-color: #fff3cd;
+    color: #664d03;
+}

@@ -1,0 +1,7 @@
+backend/.env
+backend/run_tests.ps1
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/app/env.txt
+backend/env.txt
